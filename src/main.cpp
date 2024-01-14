@@ -1,17 +1,57 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-// SparkFun IMU
+// ICM20948 SparkFun IMU
 #include <ICM20948_WE.h>
 #define IMU_I2C_ADDRESS 0x69
-ICM20948_WE imu = ICM20948_WE(IMU_I2C_ADDRESS);
+ICM20948_WE IMUSensor = ICM20948_WE(IMU_I2C_ADDRESS);
+
+// LTR390 Adafruit UV Sensor
+#include <LTR390.h>
+#define UV_I2C_ADDRESS 0x53
+LTR390 UVSensor = LTR390(UV_I2C_ADDRESS);
+
+void configureUV(LTR390 uvObject) {
+    Serial.println("Initializing UV Sensor");
+
+    delay(100);
+
+    while (!uvObject.init()) {
+        Serial.println("UV Sensor initialization unsuccessful");
+        delay(1e2);
+    }
+
+    Serial.println("UV Sensor initialization successful");
+
+    uvObject.setMode(LTR390_MODE_ALS);
+    uvObject.setGain(LTR390_GAIN_3);
+    uvObject.setResolution(LTR390_RESOLUTION_18BIT);
+}
+
+void readUVData(LTR390 uvObject) {
+    if (uvObject.newDataAvailable()) {
+        if (uvObject.getMode() == LTR390_MODE_ALS) {
+            Serial.print("Ambient Light Lux: ");
+            Serial.println(uvObject.getLux());
+            uvObject.setGain(LTR390_GAIN_18);                 // Recommended for UVI - x18
+            uvObject.setResolution(LTR390_RESOLUTION_20BIT);  // Recommended for UVI - 20-bit
+            uvObject.setMode(LTR390_MODE_UVS);
+        } else if (uvObject.getMode() == LTR390_MODE_UVS) {
+            Serial.print("UV Index: ");
+            Serial.println(uvObject.getUVI());
+            uvObject.setGain(LTR390_GAIN_3);                  // Recommended for Lux - x3
+            uvObject.setResolution(LTR390_RESOLUTION_18BIT);  // Recommended for Lux - 18-bit
+            uvObject.setMode(LTR390_MODE_ALS);
+        }
+    }
+}
 
 void configureIMU(ICM20948_WE imuObject) {
     Serial.println("Initializing IMU");
 
     delay(100);
 
-    while (!imu.init()) {
+    while (!IMUSensor.init()) {
         Serial.println("IMU initialization unsuccessful");
         delay(1e2);
     }
@@ -65,10 +105,10 @@ void readIMUData(ICM20948_WE imuObject) {
 void setup() {
     Wire.begin();
     Serial.begin(115200);
-    configureIMU(imu);
+    configureUV(UVSensor);
 }
 
 void loop() {
-    readIMUData(imu);
+    readUVData(UVSensor);
     delay(100);
 }
