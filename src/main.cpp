@@ -11,6 +11,13 @@ ICM20948_WE IMUSensor = ICM20948_WE(IMU_I2C_ADDRESS);
 #define UV_I2C_ADDRESS 0x53
 LTR390 UVSensor = LTR390(UV_I2C_ADDRESS);
 
+void readGasSensor() {
+    long value = analogRead(A0);
+
+    Serial.print("Gas Sensor Value: ");
+    Serial.println(value);
+}
+
 void configureUV(LTR390 uvObject) {
     Serial.println("Initializing UV Sensor");
 
@@ -103,12 +110,12 @@ void readIMUData(ICM20948_WE imuObject) {
 }
 
 void setup() {
-    Wire.begin();
+    // Wire.begin();
     Serial.begin(115200);
-    configureUV(UVSensor);
+    // configureUV(UVSensor);
 }
 
 void loop() {
-    readUVData(UVSensor);
+    readGasSensor();
     delay(100);
 }
