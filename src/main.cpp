@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <Wire.h>
 
 #define FAILING_DELAY 1e3
@@ -9,11 +10,6 @@
 #define MQ136_PIN A1
 
 long int itertaion = 0;
-
-// ICM20948 SparkFun IMU
-#include <ICM20948_WE.h>
-#define IMU_I2C_ADDRESS 0x69
-ICM20948_WE IMUSensor = ICM20948_WE(IMU_I2C_ADDRESS);
 
 // LTR390 Adafruit UV Sensor
 #include <LTR390.h>
@@ -30,12 +26,12 @@ AGS02MA GasSensor = AGS02MA(GAS_I2C_ADDRESS);
 BME280I2C barometer;
 
 // BME280 Bosch Environmental Sensor
-void configureBME280(BME280I2C barometer) {
+void configureBME280(BME280I2C* barometer) {
     Serial.println("Initializing BME280");
 
     delay(SERIAL_DELAY);
 
-    while (!barometer.begin()) {
+    while (!barometer->begin()) {
         Serial.println("BME280 initialization unsuccessful");
         delay(FAILING_DELAY);
     }
@@ -43,13 +39,13 @@ void configureBME280(BME280I2C barometer) {
     Serial.println("BME280 initialization successful");
 }
 
-void readBME280Data(Stream* client, BME280I2C barometer) {
+void readBME280Data(Stream* client, BME280I2C* barometer) {
     float temp(NAN), hum(NAN), pres(NAN);
 
     BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
     BME280::PresUnit presUnit(BME280::PresUnit_Pa);
 
-    barometer.read(pres, temp, hum, tempUnit, presUnit);
+    barometer->read(pres, temp, hum, tempUnit, presUnit);
 
     Serial.println("*********************************************************");
     Serial.println("BME280 Sensor (pressure, temperature, humidity, altitude)");
@@ -110,6 +106,9 @@ void configureAGS02MAGasSensor(AGS02MA gasObject) {
 }
 
 void readAGS02MAGasSensor(AGS02MA gasObject) {
+    Serial.println("*********************");
+    Serial.println("AGS02MA Sensor (TVOC)");
+    Serial.println("*********************");
     Serial.print("Gas Sensor Value: ");
     Serial.println(gasObject.readPPB());
     Serial.println();
@@ -165,67 +164,11 @@ void readUVData(LTR390 uvObject) {
     Serial.println();
 }
 
-// ICM20948 SparkFun IMU
-void configureIMU(ICM20948_WE imuObject) {
-    Serial.println("Initializing IMU");
-
-    delay(SERIAL_DELAY);
-
-    while (!IMUSensor.init()) {
-        Serial.println("IMU initialization unsuccessful");
-        delay(FAILING_DELAY);
-    }
-
-    Serial.println("IMU initialization successful");
-
-    imuObject.setAccOffsets(-16330.0, 16450.0, -16600.0, 16180.0, -16640.0, 16560.0);
-
-    Serial.println("Position your ICM20948 flat and don't move it - calibrating...");
-    delay(1000);
-    imuObject.autoOffsets();
-    Serial.println("Done!");
-
-    imuObject.setAccRange(ICM20948_ACC_RANGE_2G);
-
-    imuObject.setAccDLPF(ICM20948_DLPF_6);
-
-    imuObject.setAccSampleRateDivider(10);
-}
-
-void readIMUData(ICM20948_WE imuObject) {
-    imuObject.readSensor();
-    xyzFloat accRaw = imuObject.getAccRawValues();
-    xyzFloat corrAccRaw = imuObject.getCorrectedAccRawValues();
-    xyzFloat gVal = imuObject.getGValues();
-    float resultantG = imuObject.getResultantG(gVal);
-
-    Serial.println("Raw acceleration values (x,y,z):");
-    Serial.print(accRaw.x);
-    Serial.print("   ");
-    Serial.print(accRaw.y);
-    Serial.print("   ");
-    Serial.println(accRaw.z);
-    Serial.println("Corrected raw acceleration values (x,y,z):");
-    Serial.print(corrAccRaw.x);
-    Serial.print("   ");
-    Serial.print(corrAccRaw.y);
-    Serial.print("   ");
-    Serial.println(corrAccRaw.z);
-    Serial.println("g-values (x,y,z):");
-    Serial.print(gVal.x);
-    Serial.print("   ");
-    Serial.print(gVal.y);
-    Serial.print("   ");
-    Serial.println(gVal.z);
-    Serial.print("Resultant g: ");
-    Serial.println(resultantG);
-    Serial.println();
-}
-
 void setup() {
     Wire.begin();
     Serial.begin(SERIAL_BAUD_RATE);
-    configureBME280(barometer);
+    while (!Serial) {}  // Wait
+    configureBME280(&barometer);
     configureAGS02MAGasSensor(GasSensor);
     configureUV(UVSensor);
 }
@@ -235,7 +178,7 @@ void loop() {
     Serial.print("Iteration: ");
     Serial.println(itertaion++);
 
-    readBME280Data(&Serial, barometer);
+    readBME280Data(&Serial, &barometer);
     readAGS02MAGasSensor(GasSensor);
     readUVData(UVSensor);
 
