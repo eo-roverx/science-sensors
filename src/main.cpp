@@ -11,7 +11,32 @@ ICM20948_WE IMUSensor = ICM20948_WE(IMU_I2C_ADDRESS);
 #define UV_I2C_ADDRESS 0x53
 LTR390 UVSensor = LTR390(UV_I2C_ADDRESS);
 
-void readGasSensor() {
+// AGS02MA Adafruit Gas Sensor
+#include <AGS02MA.h>
+#define GAS_I2C_ADDRESS 26
+AGS02MA GasSensor = AGS02MA(GAS_I2C_ADDRESS);
+
+void configureAGS02MAGasSensor(AGS02MA gasObject) {
+    Serial.println("Initializing Gas Sensor");
+
+    delay(100);
+
+    while (!gasObject.begin()) {
+        Serial.println("Gas Sensor initialization unsuccessful");
+        delay(1e2);
+    }
+
+    gasObject.setPPBMode();
+
+    Serial.println("Gas Sensor initialization successful");
+}
+
+void readAGS02MAGasSensor(AGS02MA gasObject) {
+    Serial.print("Gas Sensor Value: ");
+    Serial.println(gasObject.readPPB());
+}
+
+void readGasAnalogSensor() {
     long value = analogRead(A0);
 
     Serial.print("Gas Sensor Value: ");
@@ -110,12 +135,12 @@ void readIMUData(ICM20948_WE imuObject) {
 }
 
 void setup() {
-    // Wire.begin();
+    Wire.begin();
     Serial.begin(115200);
-    // configureUV(UVSensor);
+    configureAGS02MAGasSensor(GasSensor);
 }
 
 void loop() {
-    readGasSensor();
+    readAGS02MAGasSensor(GasSensor);
     delay(100);
 }
