@@ -1,6 +1,15 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#define FAILING_DELAY 1e3
+#define SERIAL_DELAY 1e2
+#define LOOP_DELAY 5e3
+#define SERIAL_BAUD_RATE 115200
+#define MQ9_PIN A0
+#define MQ136_PIN A1
+
+long int itertaion = 0;
+
 // ICM20948 SparkFun IMU
 #include <ICM20948_WE.h>
 #define IMU_I2C_ADDRESS 0x69
@@ -20,46 +29,79 @@ AGS02MA GasSensor = AGS02MA(GAS_I2C_ADDRESS);
 #include <BME280I2C.h>
 BME280I2C barometer;
 
+// BME280 Bosch Environmental Sensor
 void configureBME280(BME280I2C barometer) {
     Serial.println("Initializing BME280");
 
-    delay(100);
+    delay(SERIAL_DELAY);
 
     while (!barometer.begin()) {
         Serial.println("BME280 initialization unsuccessful");
-        delay(1e2);
+        delay(FAILING_DELAY);
     }
 
     Serial.println("BME280 initialization successful");
 }
 
-void readBME280Data(BME280I2C barometer) {
-    float pressure, temperature, humidity;
+void readBME280Data(Stream* client, BME280I2C barometer) {
+    float temp(NAN), hum(NAN), pres(NAN);
 
     BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
     BME280::PresUnit presUnit(BME280::PresUnit_Pa);
 
-    barometer.read(pressure, temperature, humidity, tempUnit, presUnit);
+    barometer.read(pres, temp, hum, tempUnit, presUnit);
 
-    Serial.print("Pressure: ");
-    Serial.print(pressure);
-    Serial.print(" Pa, ");
-    Serial.print("Temperature: ");
-    Serial.print(temperature);
-    Serial.print(" °C, ");
-    Serial.print("Humidity: ");
-    Serial.print(humidity);
-    Serial.println(" %");
+    Serial.println("*********************************************************");
+    Serial.println("BME280 Sensor (pressure, temperature, humidity, altitude)");
+    Serial.println("*********************************************************");
+    client->print("Temp: ");
+    client->print(temp);
+    client->print("°" + String(tempUnit == BME280::TempUnit_Celsius ? 'C' : 'F'));
+    client->print("\t\tHumidity: ");
+    client->print(hum);
+    client->print("% RH");
+    client->print("\t\tPressure: ");
+    client->print(pres);
+    client->print("Pa");
+
+    float altitude = 44330 * (1.0 - pow((pres / 100) / 1013, 0.1903));
+    client->print("\t\t% Alt: ");
+    client->println(altitude);
+    Serial.println();
 }
 
+// void readBME280Data(BME280I2C barometer) {
+//     float pressure, temperature, humidity;
+
+//     BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
+//     BME280::PresUnit presUnit(BME280::PresUnit_Pa);
+
+//     barometer.read(pressure, temperature, humidity, tempUnit, presUnit);
+
+//     Serial.println("***********************************************");
+//     Serial.println("BME280 Sensor (pressure, temperature, humidity)");
+//     Serial.println("***********************************************");
+//     Serial.print("Pressure: ");
+//     Serial.print(pressure);
+//     Serial.print(" Pa, ");
+//     Serial.print("Temperature: ");
+//     Serial.print(temperature);
+//     Serial.print(" °C, ");
+//     Serial.print("Humidity: ");
+//     Serial.print(humidity);
+//     Serial.println(" %");
+//     Serial.println();
+// }
+
+// AGS02MA Adafruit Gas Sensor
 void configureAGS02MAGasSensor(AGS02MA gasObject) {
     Serial.println("Initializing Gas Sensor");
 
-    delay(100);
+    delay(SERIAL_DELAY);
 
     while (!gasObject.begin()) {
         Serial.println("Gas Sensor initialization unsuccessful");
-        delay(1e2);
+        delay(FAILING_DELAY);
     }
 
     gasObject.setPPBMode();
@@ -70,23 +112,27 @@ void configureAGS02MAGasSensor(AGS02MA gasObject) {
 void readAGS02MAGasSensor(AGS02MA gasObject) {
     Serial.print("Gas Sensor Value: ");
     Serial.println(gasObject.readPPB());
+    Serial.println();
 }
 
-void readGasAnalogSensor() {
-    long value = analogRead(A0);
+// Analog Gas Sensor
+void readGasAnalogSensor(uint8_t pin) {
+    long value = analogRead(pin);
 
     Serial.print("Gas Sensor Value: ");
     Serial.println(value);
+    Serial.println();
 }
 
+// LTR390 Adafruit UV Sensor
 void configureUV(LTR390 uvObject) {
     Serial.println("Initializing UV Sensor");
 
-    delay(100);
+    delay(SERIAL_DELAY);
 
     while (!uvObject.init()) {
         Serial.println("UV Sensor initialization unsuccessful");
-        delay(1e2);
+        delay(FAILING_DELAY);
     }
 
     Serial.println("UV Sensor initialization successful");
@@ -97,6 +143,10 @@ void configureUV(LTR390 uvObject) {
 }
 
 void readUVData(LTR390 uvObject) {
+    Serial.println("*******************************************");
+    Serial.println("LTR390 Sensor (UV Index, Ambient Light Lux)");
+    Serial.println("*******************************************");
+
     if (uvObject.newDataAvailable()) {
         if (uvObject.getMode() == LTR390_MODE_ALS) {
             Serial.print("Ambient Light Lux: ");
@@ -112,16 +162,18 @@ void readUVData(LTR390 uvObject) {
             uvObject.setMode(LTR390_MODE_ALS);
         }
     }
+    Serial.println();
 }
 
+// ICM20948 SparkFun IMU
 void configureIMU(ICM20948_WE imuObject) {
     Serial.println("Initializing IMU");
 
-    delay(100);
+    delay(SERIAL_DELAY);
 
     while (!IMUSensor.init()) {
         Serial.println("IMU initialization unsuccessful");
-        delay(1e2);
+        delay(FAILING_DELAY);
     }
 
     Serial.println("IMU initialization successful");
@@ -167,16 +219,35 @@ void readIMUData(ICM20948_WE imuObject) {
     Serial.println(gVal.z);
     Serial.print("Resultant g: ");
     Serial.println(resultantG);
-    Serial.println("*************************************");
+    Serial.println();
 }
 
 void setup() {
     Wire.begin();
-    Serial.begin(115200);
+    Serial.begin(SERIAL_BAUD_RATE);
     configureBME280(barometer);
+    configureAGS02MAGasSensor(GasSensor);
+    configureUV(UVSensor);
 }
 
 void loop() {
-    readBME280Data(barometer);
-    delay(100);
+    Serial.println("\n\n");
+    Serial.print("Iteration: ");
+    Serial.println(itertaion++);
+
+    readBME280Data(&Serial, barometer);
+    readAGS02MAGasSensor(GasSensor);
+    readUVData(UVSensor);
+
+    Serial.println("********************************");
+    Serial.println("MQ9 Sensor (CO, CH4, H2, C2H5OH)");
+    Serial.println("********************************");
+    readGasAnalogSensor(MQ9_PIN);
+
+    Serial.println("******************");
+    Serial.println("MQ136 Sensor (H2S)");
+    Serial.println("******************");
+    readGasAnalogSensor(MQ136_PIN);
+
+    delay(LOOP_DELAY);
 }
