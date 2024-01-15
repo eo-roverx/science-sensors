@@ -16,6 +16,42 @@ LTR390 UVSensor = LTR390(UV_I2C_ADDRESS);
 #define GAS_I2C_ADDRESS 26
 AGS02MA GasSensor = AGS02MA(GAS_I2C_ADDRESS);
 
+// BME280 Bosch Environmental Sensor
+#include <BME280I2C.h>
+BME280I2C barometer;
+
+void configureBME280(BME280I2C barometer) {
+    Serial.println("Initializing BME280");
+
+    delay(100);
+
+    while (!barometer.begin()) {
+        Serial.println("BME280 initialization unsuccessful");
+        delay(1e2);
+    }
+
+    Serial.println("BME280 initialization successful");
+}
+
+void readBME280Data(BME280I2C barometer) {
+    float pressure, temperature, humidity;
+
+    BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
+    BME280::PresUnit presUnit(BME280::PresUnit_Pa);
+
+    barometer.read(pressure, temperature, humidity, tempUnit, presUnit);
+
+    Serial.print("Pressure: ");
+    Serial.print(pressure);
+    Serial.print(" Pa, ");
+    Serial.print("Temperature: ");
+    Serial.print(temperature);
+    Serial.print(" °C, ");
+    Serial.print("Humidity: ");
+    Serial.print(humidity);
+    Serial.println(" %");
+}
+
 void configureAGS02MAGasSensor(AGS02MA gasObject) {
     Serial.println("Initializing Gas Sensor");
 
@@ -137,10 +173,10 @@ void readIMUData(ICM20948_WE imuObject) {
 void setup() {
     Wire.begin();
     Serial.begin(115200);
-    configureAGS02MAGasSensor(GasSensor);
+    configureBME280(barometer);
 }
 
 void loop() {
-    readAGS02MAGasSensor(GasSensor);
+    readBME280Data(barometer);
     delay(100);
 }
