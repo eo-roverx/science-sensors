@@ -1,13 +1,15 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <Servo.h>
 #include <Wire.h>
 
 #define FAILING_DELAY 1e3
 #define SERIAL_DELAY 1e2
 #define LOOP_DELAY 5e3
 #define SERIAL_BAUD_RATE 115200
-#define MQ9_PIN A0
-#define MQ136_PIN A1
+#define MQ136_PIN A0
+#define MQ9_PIN A1
+#define SERVO_PIN 3
 
 long int itertaion = 0;
 
@@ -24,6 +26,11 @@ AGS02MA GasSensor = AGS02MA(GAS_I2C_ADDRESS);
 // BME280 Bosch Environmental Sensor
 #include <BME280I2C.h>
 BME280I2C barometer;
+
+
+
+// Servo
+Servo servo;
 
 // BME280 Bosch Environmental Sensor
 void configureBME280(BME280I2C* barometer) {
@@ -167,10 +174,14 @@ void readUVData(LTR390 uvObject) {
 void setup() {
     Wire.begin();
     Serial.begin(SERIAL_BAUD_RATE);
-    while (!Serial) {}  // Wait
+    while (!Serial) {
+    }  // Wait
+
     configureBME280(&barometer);
     configureAGS02MAGasSensor(GasSensor);
     configureUV(UVSensor);
+
+    servo.attach(SERVO_PIN);
 }
 
 void loop() {
@@ -192,5 +203,13 @@ void loop() {
     Serial.println("******************");
     readGasAnalogSensor(MQ136_PIN);
 
-    delay(LOOP_DELAY);
+    for (uint8_t angle = 0; angle < 255; angle++) {
+        servo.write(angle);
+        delay(15);
+    }
+
+    for (uint8_t angle = 255; angle > 0; angle--) {
+        servo.write(angle);
+        delay(15);
+    }
 }
